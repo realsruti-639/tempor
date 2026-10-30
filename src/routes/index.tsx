@@ -156,7 +156,7 @@ function Index() {
       </div>
 
       <AlertDialog open={pendingMode !== null} onOpenChange={(o) => !o && setPendingMode(null)}>
-        <AlertDialogContent className="glass-panel rounded-2xl">
+        <AlertDialogContent className="border-glass-border bg-popover rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Leave this {MODE_LABEL[timer.mode].toLowerCase()} session?</AlertDialogTitle>
             <AlertDialogDescription>

@@ -70,7 +70,7 @@ export function AudioWidget({ prefs, isPlaying, blocked, onSelect, onToggle, onV
         >
           <SlidersHorizontal className="h-4 w-4" />
         </PopoverTrigger>
-        <PopoverContent align="end" sideOffset={10} className="glass-panel w-80 rounded-2xl p-4">
+        <PopoverContent align="end" sideOffset={10} className="border-glass-border bg-popover/95 shadow-2xl backdrop-blur-xl w-80 rounded-2xl p-4">
           <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
             Ambience channel
           </p>

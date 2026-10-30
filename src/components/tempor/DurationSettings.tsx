@@ -42,7 +42,7 @@ export function DurationSettings({
       >
         <Settings2 className="h-4 w-4" />
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="glass-panel w-72 rounded-2xl p-4">
+      <PopoverContent align="end" sideOffset={8} className="border-glass-border bg-popover/95 shadow-2xl backdrop-blur-xl w-72 rounded-2xl p-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();

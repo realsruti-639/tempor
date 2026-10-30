@@ -34,7 +34,7 @@ import {
 } from "@/lib/tempor/core";
 import type { Command } from "@/lib/tempor/commands";
 
-export const COOLDOWN_LOG =
+const COOLDOWN_LOG =
   "High-performance cycle complete. Core cooling initiated. Stand up, stretch, and breathe.";
 
 export const Route = createFileRoute("/")({

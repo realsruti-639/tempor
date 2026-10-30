@@ -57,8 +57,7 @@ export function parseCommand(raw: string): Command {
   const tail = rest.join(" ").trim();
 
   if (ADD_WORDS.includes(head)) {
-    if (tail) return { type: "add", text: tail };
-    return slash ? { type: "empty" } : { type: "add", text: input };
+    return tail ? { type: "add", text: tail } : { type: "empty" };
   }
 
   // Remaining words with filler removed, for phrases like "take a long break".

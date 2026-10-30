@@ -22,7 +22,7 @@ export interface LogEntry {
   tag: string;
   text: string;
   tone: LogTone;
-  action?: LogAction;
+  action?: LogAction | undefined;
 }
 
 /** Types the newest log line out character by character (instant with reduced motion). */

@@ -153,7 +153,7 @@ export function TaskTerminal({ logs, onLog, tasks, onAdd, onToggle, onRemove, on
                 </button>
                 <span className="min-w-0 flex-1 break-words font-mono text-sm">
                   {t.origin === "ai" ? (
-                    <span className="text-orchid [text-shadow:var(--glow-orchid)]">{AI_PREFIX}</span>
+                    <span className="text-orchid [text-shadow:0_0_10px_color-mix(in_oklab,var(--orchid)_55%,transparent)]">{AI_PREFIX}</span>
                   ) : (
                     <span className="text-terminal">[READY]:</span>
                   )}{" "}

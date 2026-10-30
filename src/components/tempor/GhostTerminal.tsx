@@ -18,6 +18,21 @@ export function GhostTerminal({ open, onOpenChange, onRun }: Props) {
   const [error, setError] = useState<{ id: number; text: string } | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!error || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    panelRef.current?.animate(
+      [
+        { transform: "translateX(0)" },
+        { transform: "translateX(-5px)" },
+        { transform: "translateX(5px)" },
+        { transform: "translateX(-3px)" },
+        { transform: "translateX(0)" },
+      ],
+      { duration: 320, easing: "ease-in-out" },
+    );
+  }, [error]);
 
   useEffect(() => {
     if (open) {
@@ -31,7 +46,7 @@ export function GhostTerminal({ open, onOpenChange, onRun }: Props) {
   const parsed = useMemo(() => parseCommand(value), [value]);
   const hints = useMemo(() => {
     const v = value.trim().toLowerCase();
-    if (showHelp || v === "" ) return COMMAND_HINTS;
+    if (showHelp || v === "") return COMMAND_HINTS;
     if (!v.startsWith("/")) return [];
     return COMMAND_HINTS.filter((h) => h.usage.toLowerCase().startsWith(v.split(" ")[0]!));
   }, [value, showHelp]);
@@ -94,11 +109,8 @@ export function GhostTerminal({ open, onOpenChange, onRun }: Props) {
           className="fixed left-1/2 top-[14vh] z-50 w-[min(640px,calc(100vw-2rem))] -translate-x-1/2 outline-none"
         >
           <div
-            key={error?.id}
-            className={cn(
-              "animate-ghost-in overflow-hidden rounded-2xl border border-glass-border bg-popover/80 shadow-[0_40px_120px_-30px_oklch(0_0_0/0.9),0_0_0_1px_color-mix(in_oklab,var(--mode)_18%,transparent)] backdrop-blur-2xl",
-              error && "animate-shake",
-            )}
+            ref={panelRef}
+            className="animate-ghost-in overflow-hidden rounded-2xl border border-glass-border bg-popover/80 shadow-[0_40px_120px_-30px_oklch(0_0_0/0.9),0_0_0_1px_color-mix(in_oklab,var(--mode)_18%,transparent)] backdrop-blur-2xl"
           >
             <DialogPrimitive.Title className="sr-only">Ghost Terminal</DialogPrimitive.Title>
             <DialogPrimitive.Description className="sr-only">

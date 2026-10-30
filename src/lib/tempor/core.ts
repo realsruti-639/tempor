@@ -37,11 +37,25 @@ export interface TimerState {
   /** When the current pause began. */
   pausedAt: number | null;
   completedAt: number | null;
+  /** Full length of the current session, fixed when it starts. */
+  sessionDurationMs: number | null;
 }
 
 export interface Progress {
   completedFocus: number;
   lastCountedSessionId: string | null;
+  /** Grid Credits earned from focus sessions (spent on upgrades). */
+  credits: number;
+}
+
+export const CREDITS_PER_FULL_SESSION = 100;
+export const FULL_SESSION_MINUTES = 25;
+
+/** +100 for a 25-minute (or longer) focus session; shorter custom sessions earn pro rata. */
+export function creditsForSession(durationMs: number | null): number {
+  const minutes = (durationMs ?? FULL_SESSION_MINUTES * 60_000) / 60_000;
+  if (minutes >= FULL_SESSION_MINUTES) return CREDITS_PER_FULL_SESSION;
+  return Math.max(0, Math.round((CREDITS_PER_FULL_SESSION * minutes) / FULL_SESSION_MINUTES));
 }
 
 export const LONG_BREAK_EVERY = 4;
@@ -67,7 +81,13 @@ export function createReady(mode: Mode, durations: Durations): TimerState {
     sessionStartedAt: null,
     pausedAt: null,
     completedAt: null,
+    sessionDurationMs: null,
   };
+}
+
+/** Breaks, and a finished focus session, use the warm cooldown palette. */
+export function isRestPhase(t: TimerState): boolean {
+  return t.mode !== "focus" || t.status === "complete";
 }
 
 export function remainingAt(t: TimerState, now: number): number {
@@ -95,6 +115,7 @@ export function startTimer(
     sessionStartedAt: now,
     pausedAt: null,
     completedAt: null,
+    sessionDurationMs: base.remainingMs,
   };
 }
 
@@ -140,7 +161,11 @@ export function settle(t: TimerState, progress: Progress, now: number): SettleRe
   };
   let next = progress;
   if (t.mode === "focus" && t.sessionId && t.sessionId !== progress.lastCountedSessionId) {
-    next = { completedFocus: progress.completedFocus + 1, lastCountedSessionId: t.sessionId };
+    next = {
+      completedFocus: progress.completedFocus + 1,
+      lastCountedSessionId: t.sessionId,
+      credits: progress.credits + creditsForSession(t.sessionDurationMs),
+    };
   }
   return { timer, progress: next, justCompleted: true };
 }

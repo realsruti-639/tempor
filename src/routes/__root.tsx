@@ -108,7 +108,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-mode="focus" className="mode-transition">
+    <html lang="en" data-phase="focus" className="mode-transition">
       <head>
         <HeadContent />
       </head>

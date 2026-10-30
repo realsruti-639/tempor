@@ -170,18 +170,6 @@ export function TimerCard({
             <Play /> {status === "paused" ? "Resume" : "Start"}
           </Button>
         )}
-        {!complete && (
-          <Button
-            variant="glass"
-            size="icon-lg"
-            onClick={onPause}
-            disabled={status !== "running"}
-            aria-label="Pause"
-            className="hidden"
-          >
-            <Pause />
-          </Button>
-        )}
         <Button
           variant="glass"
           size="xl"

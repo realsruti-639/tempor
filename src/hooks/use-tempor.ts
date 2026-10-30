@@ -13,7 +13,7 @@ import {
   type Durations,
   type Mode,
 } from "@/lib/tempor/core";
-import { purchase, toggleEquip, type CosmeticId, type PurchaseResult } from "@/lib/tempor/upgrades";
+import { purchase, toggleEquip, type CosmeticId } from "@/lib/tempor/upgrades";
 import {
   defaultState,
   loadState,
@@ -180,16 +180,14 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
     setState((s) => ({ ...s, audio: { ...s.audio, ...patch } }));
   }, []);
 
-  const buyCosmetic = useCallback((id: CosmeticId): PurchaseResult => {
-    let result: PurchaseResult | null = null;
+  /** Spends Grid Credits; ignored if already owned or unaffordable. */
+  const buyCosmetic = useCallback((id: CosmeticId) => {
     setState((s) => {
       const r = purchase({ credits: s.progress.credits, ...s.cosmetics }, id);
-      result = r;
       if (!r.ok) return s;
       const { credits, owned, equipped } = r.inventory;
       return { ...s, progress: { ...s.progress, credits }, cosmetics: { owned, equipped } };
     });
-    return result ?? { ok: false, reason: "unknown", inventory: { credits: 0, owned: [], equipped: [] } };
   }, []);
 
   const toggleCosmetic = useCallback((id: CosmeticId) => {

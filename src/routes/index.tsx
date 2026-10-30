@@ -55,7 +55,7 @@ function Index() {
 
   // Mode accent drives the whole document, including popovers.
   useEffect(() => {
-    document.documentElement.dataset.mode = timer.mode;
+    document.documentElement.setAttribute("data-mode", timer.mode);
   }, [timer.mode]);
 
   const start = useCallback(() => {

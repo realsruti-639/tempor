@@ -57,7 +57,15 @@ export function defaultState(): SavedState {
   };
 }
 
-const isObj = (v: unknown): v is Record<string, unknown> =>
+type Key =
+  | "id" | "text" | "done" | "createdAt" | "completedAt"
+  | "track" | "volume" | "chime"
+  | "durations" | "timer" | "progress" | "tasks" | "audio" | "botFrozen"
+  | "mode" | "status" | "remainingMs" | "endAt" | "sessionId" | "sessionStartedAt" | "pausedAt"
+  | "completedFocus" | "lastCountedSessionId" | Mode;
+type Bag = Partial<Record<Key, unknown>>;
+
+const isObj = (v: unknown): v is Bag =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const numOrNull = (v: unknown): number | null => (isNum(v) ? v : null);

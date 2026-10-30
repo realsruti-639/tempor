@@ -21,7 +21,7 @@ export const GridRoom = memo(function GridRoom({ now, messages, pulse }: Props) 
   const speaker = messages.at(-1)?.agent;
 
   return (
-    <section aria-labelledby="grid-title" className="glass-panel relative overflow-hidden rounded-3xl contain-paint">
+    <section aria-labelledby="grid-title" className="glass-panel relative overflow-hidden rounded-3xl [contain:paint]">
       {pulse > 0 && (
         <span
           key={pulse}
@@ -101,7 +101,7 @@ export const GridRoom = memo(function GridRoom({ now, messages, pulse }: Props) 
             <p
               key={m.id}
               className={cn(
-                "truncate transition-opacity duration-500",
+                "break-words transition-opacity duration-500",
                 i === messages.length - 1 ? "animate-log-in text-foreground/90" : "text-muted-foreground/60",
               )}
             >

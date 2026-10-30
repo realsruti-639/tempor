@@ -94,7 +94,7 @@ function Index() {
           <div className="flex items-center gap-3">
             <span
               aria-hidden
-              className="grid h-9 w-9 place-items-center rounded-xl border border-glass-border bg-glass font-mono text-sm text-mode shadow-[0_0_20px_-6px_var(--mode)] mode-transition"
+              className="grid h-9 w-9 place-items-center rounded-xl border border-glass-border bg-glass font-mono text-sm text-mode shadow-[0_0_20px_-6px_var(--mode)]"
             >
               T
             </span>

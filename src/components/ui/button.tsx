@@ -17,7 +17,7 @@ const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         /** Primary timer action — follows the live focus/break accent. */
-        mode: "bg-mode text-background font-semibold shadow-[0_0_28px_-6px_var(--mode)] hover:shadow-[0_0_40px_-4px_var(--mode)] hover:brightness-110 mode-transition",
+        mode: "bg-mode text-background font-semibold shadow-[0_0_28px_-6px_var(--mode)] hover:shadow-[0_0_40px_-4px_var(--mode)] hover:brightness-110",
         /** Quiet glass control. */
         glass:
           "border border-glass-border bg-glass text-foreground hover:bg-accent hover:border-mode/40 backdrop-blur-md",

@@ -100,7 +100,7 @@ function Index() {
             </span>
             <div className="leading-tight">
               <h1 className="text-lg font-semibold tracking-[0.18em]">TEMPOR</h1>
-              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+              <p className="hidden font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground sm:block">
                 late-night focus nook
               </p>
             </div>
@@ -116,7 +116,7 @@ function Index() {
           />
         </header>
 
-        <main className="mt-6 grid flex-1 gap-5 lg:mt-10 lg:grid-cols-12 lg:gap-6">
+        <main className="mt-6 grid content-start gap-5 lg:flex-1 lg:mt-10 lg:grid-cols-12 lg:gap-6">
           <div className="lg:col-span-7 xl:col-span-8">
             <TimerCard
               timer={timer}

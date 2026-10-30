@@ -155,7 +155,7 @@ export function PomoBot({ state, frozen, onFrozenChange }: Props) {
     <section aria-labelledby="bot-title" className="glass-panel flex flex-col rounded-3xl p-5">
       <header className="flex items-center justify-between">
         <h2 id="bot-title" className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-          Pomo-Bot <span className="text-orchid/80">// desk unit 07</span>
+          Pomo-Bot <span className="hidden text-orchid/80 sm:inline">// desk unit 07</span>
         </h2>
         <div className="flex items-center gap-2">
           <Label htmlFor="bot-still" className="cursor-pointer text-xs text-muted-foreground">

@@ -120,7 +120,7 @@ export function TimerCard({
         role="timer"
         aria-label={`${MODE_LABEL[mode]} timer, ${formatClock(remaining)} remaining, ${STATUS_LABEL[status]}`}
         className={cn(
-          "mt-3 select-none text-center font-mono text-[length:clamp(4.75rem,19vw,10.5rem)] font-medium leading-none tracking-tight tabular text-mode text-glow-mode mode-transition",
+          "mt-3 select-none text-center font-mono text-[length:clamp(4.75rem,19vw,10.5rem)] font-medium leading-none tracking-tight tabular text-mode glow-text-mode mode-transition",
           status === "paused" && "opacity-70",
           complete && "animate-complete",
         )}

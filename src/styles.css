@@ -190,7 +190,7 @@
     box-shadow 900ms ease;
 }
 
-@utility text-glow-mode {
+@utility glow-text-mode {
   text-shadow: var(--text-glow-mode);
 }
 

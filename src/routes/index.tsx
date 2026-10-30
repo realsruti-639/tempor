@@ -43,9 +43,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [audioPrefsSetter, setAudioPrefsSetter] = useState<null | (() => void)>(null);
-  void audioPrefsSetter;
-  void setAudioPrefsSetter;
+
 
   const [chimeRef] = useState<{ fn: () => void }>(() => ({ fn: () => {} }));
   const { state, now, announcement, actions } = useTempor(() => chimeRef.fn());

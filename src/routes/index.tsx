@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Command as CommandIcon } from "lucide-react";
+import { Command as CommandIcon, Zap } from "lucide-react";
 
 import {
   AlertDialog,
@@ -21,6 +21,8 @@ import { PomoBot } from "@/components/tempor/PomoBot";
 import { SystemUpgrades } from "@/components/tempor/SystemUpgrades";
 import { TaskTerminal, type LogEntry, type LogTone } from "@/components/tempor/TaskTerminal";
 import { GhostTerminal } from "@/components/tempor/GhostTerminal";
+import { GridRoom, type GridChat } from "@/components/tempor/GridRoom";
+import { OverclockView } from "@/components/tempor/OverclockView";
 import { useTempor, type CompletionInfo } from "@/hooks/use-tempor";
 import { useAmbience } from "@/hooks/use-ambience";
 import {
@@ -33,6 +35,10 @@ import {
   type Mode,
 } from "@/lib/tempor/core";
 import type { Command } from "@/lib/tempor/commands";
+import { DECK_TAG, breakdownStress, deckLine, preparesSynthTrack, type DeckEvent } from "@/lib/tempor/deck";
+import { gridReaction } from "@/lib/tempor/grid";
+import { SYNTH_TRACK, TRACKS } from "@/lib/tempor/tracks";
+import { cn } from "@/lib/utils";
 
 const COOLDOWN_LOG =
   "High-performance cycle complete. Core cooling initiated. Stand up, stretch, and breathe.";
@@ -40,17 +46,17 @@ const COOLDOWN_LOG =
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Tempor v2 — the sovereign focus engine" },
+      { title: "Tempor v3 — the autonomous focus OS" },
       {
         name: "description",
         content:
-          "A late-night Pomodoro engine with a command terminal, generative ambient mixer, a pixel co-worker you can upgrade, and a calming cooldown mode.",
+          "A late-night Pomodoro OS with an AI Deck Officer, a 9-track generative mixer, a mock hacker Grid Room and a full-screen Overclock mode.",
       },
-      { property: "og:title", content: "Tempor v2 — the sovereign focus engine" },
+      { property: "og:title", content: "Tempor v3 — the autonomous focus OS" },
       {
         property: "og:description",
         content:
-          "Focus timer, ambient mixer, Grid Credits and Pomo-Bot upgrades — all saved on your device.",
+          "Focus timer, Deck Officer brain dumps, Grid Room co-workers, 9 ambient tracks and Overclock mode — all saved on your device.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -70,19 +76,53 @@ function Index() {
   const [burst, setBurst] = useState<BurstEvent | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isMac, setIsMac] = useState(false);
+  const [overclock, setOverclock] = useState(false);
+  const [gridChat, setGridChat] = useState<GridChat[]>([]);
+  const [gridPulse, setGridPulse] = useState(0);
   const logId = useRef(0);
+  const taskPings = useRef(0);
+  const deckTimers = useRef<number[]>([]);
   const timerCardRef = useRef<HTMLDivElement>(null);
 
-  const pushLog = useCallback((tag: string, text: string, tone: LogTone) => {
+  const pushLog = useCallback((tag: string, text: string, tone: LogTone, action?: LogEntry["action"]) => {
     logId.current += 1;
-    const entry = { id: logId.current, tag, text, tone };
-    setLogs((l) => [...l.slice(-2), entry]);
+    const entry = { id: logId.current, tag, text, tone, action };
+    setLogs((l) => [...l.slice(-3), entry]);
+  }, []);
+
+  /** Deck Officer speaks; `delayMs` lets an earlier line finish typing first. */
+  const deck = useCallback(
+    (e: DeckEvent, delayMs = 0, action?: LogEntry["action"]) => {
+      const line = deckLine(e);
+      if (!line) return;
+      if (!delayMs) return pushLog(DECK_TAG, line, "deck", action);
+      deckTimers.current.push(window.setTimeout(() => pushLog(DECK_TAG, line, "deck", action), delayMs));
+    },
+    [pushLog],
+  );
+  useEffect(() => () => deckTimers.current.forEach((t) => window.clearTimeout(t)), []);
+
+  const pingGrid = useCallback((event: "focus" | "task") => {
+    const msg = gridReaction(event, event === "task" ? taskPings.current++ : 0);
+    const id = Date.now() + Math.random();
+    setGridChat((c) => [...c.slice(-2), { ...msg, id }]);
+    setGridPulse((p) => p + 1);
   }, []);
 
   completeRef.current = (info) => {
     ambience.chime();
     if (info.mode !== "focus") return;
     pushLog("SYSTEM STATUS", COOLDOWN_LOG, "system");
+    pingGrid("focus");
+    if (preparesSynthTrack(info.streak)) {
+      // "I've prepared your favorite synth track": cue it now if sound is on, else offer it.
+      if (ambience.isPlaying) ambience.selectTrack(SYNTH_TRACK);
+      deck({ type: "focus-complete", streak: info.streak }, 2400, ambience.isPlaying
+        ? undefined
+        : { label: `play ${TRACKS[SYNTH_TRACK].name}`, run: () => ambience.selectTrack(SYNTH_TRACK) });
+    } else {
+      deck({ type: "focus-complete", streak: info.streak }, 2400);
+    }
     const r = timerCardRef.current?.getBoundingClientRect();
     setBurst({
       id: Date.now(),
@@ -104,15 +144,28 @@ function Index() {
 
   const start = useCallback(() => {
     ambience.prepareChime();
+    if (timer.status === "ready" && timer.mode === "focus") deck({ type: "focus-start", streak: progress.streak });
     actions.start();
-  }, [ambience, actions]);
+  }, [ambience, actions, timer.status, timer.mode, progress.streak, deck]);
 
   const beginNext = useCallback(
     (m: Mode) => {
       ambience.prepareChime();
+      if (m === "focus") deck({ type: "focus-start", streak: progress.streak });
       actions.setMode(m, true);
     },
-    [ambience, actions],
+    [ambience, actions, progress.streak, deck],
+  );
+
+  const toggleOverclock = useCallback(
+    (on?: boolean) => {
+      setOverclock((cur) => {
+        const next = on ?? !cur;
+        if (next !== cur) deck({ type: "overclock", on: next });
+        return next;
+      });
+    },
+    [deck],
   );
 
   const requestMode = useCallback(
@@ -147,11 +200,20 @@ function Index() {
         case "reset":
           actions.reset();
           return true;
+        case "stress": {
+          const subtasks = breakdownStress(c.text);
+          actions.addTasks(subtasks, "ai");
+          deck({ type: "stress", count: subtasks.length });
+          return true;
+        }
+        case "overclock":
+          toggleOverclock();
+          return true;
         default:
           return false;
       }
     },
-    [actions, pushLog, timer, progress.completedFocus, beginNext, start, requestMode],
+    [actions, pushLog, timer, progress.completedFocus, beginNext, start, requestMode, deck, toggleOverclock],
   );
 
   // Global shortcuts: Ctrl/Cmd+K toggles the Ghost Terminal; Space starts/pauses.
@@ -160,6 +222,11 @@ function Index() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setGhostOpen((o) => !o);
+        return;
+      }
+      if (e.key === "Escape" && overclock && !ghostOpen && pendingMode === null) {
+        e.preventDefault();
+        toggleOverclock(false);
         return;
       }
       if (e.code !== "Space" || e.repeat || ghostOpen) return;
@@ -172,7 +239,7 @@ function Index() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [timer.status, actions, start, ghostOpen]);
+  }, [timer.status, actions, start, ghostOpen, overclock, pendingMode, toggleOverclock]);
 
   // Particle drift: faster as the session nears its end, lifted by audio energy.
   const timerRef = useRef(timer);
@@ -185,7 +252,19 @@ function Index() {
   }, [ambience]);
 
   const botState = botStateFor(timer, progress.completedFocus, now);
-  const particlesOn = timer.status === "running" && ambience.isPlaying;
+  const particlesOn = timer.status === "running" && ambience.isPlaying && !overclock;
+
+  // Deck Officer notices a long pause once per pause.
+  const notedPause = useRef<number | null>(null);
+  useEffect(() => {
+    if (botState === "extendedPause" && timer.pausedAt !== null && notedPause.current !== timer.pausedAt) {
+      notedPause.current = timer.pausedAt;
+      deck({ type: "long-pause" });
+    }
+  }, [botState, timer.pausedAt, deck]);
+
+  // Agent tickers move per minute; a coarse clock keeps the Grid Room from re-rendering 4×/s.
+  const gridNow = Math.floor(now / 5000) * 5000;
 
   return (
     <div className="relative min-h-screen">
@@ -194,7 +273,25 @@ function Index() {
       </Backdrop>
       <CelebrationBurst event={burst} />
 
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
+      {overclock && (
+        <OverclockView
+          timer={timer}
+          now={now}
+          durations={durations}
+          onStart={timer.status === "complete" ? () => beginNext(suggestedNextMode(timer.mode, progress.completedFocus)) : start}
+          onPause={actions.pause}
+          onExit={() => toggleOverclock(false)}
+        />
+      )}
+
+      <div
+        aria-hidden={overclock || undefined}
+        inert={overclock || undefined}
+        className={cn(
+          "mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-5 transition-opacity duration-500 sm:px-6 lg:px-10 lg:py-8",
+          overclock && "pointer-events-none opacity-0",
+        )}
+      >
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span
@@ -205,10 +302,10 @@ function Index() {
             </span>
             <div className="leading-tight">
               <h1 className="text-lg font-semibold tracking-[0.18em]">
-                TEMPOR <span className="font-mono text-xs font-normal text-mode">v2</span>
+                TEMPOR <span className="font-mono text-xs font-normal text-mode">v3</span>
               </h1>
               <p className="hidden font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground sm:block">
-                sovereign focus engine
+                autonomous focus os
               </p>
             </div>
           </div>
@@ -222,12 +319,22 @@ function Index() {
               <CommandIcon className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{isMac ? "⌘" : "Ctrl"} K</span>
             </button>
+            <button
+              type="button"
+              onClick={() => toggleOverclock(true)}
+              aria-label="Enter Overclock mode"
+              className="overclock-btn group flex h-11 items-center gap-2 rounded-2xl px-3 font-mono text-[11px] uppercase tracking-[0.2em] text-mode transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 sm:px-4"
+            >
+              <Zap className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110" />
+              <span className="hidden sm:inline">Overclock</span>
+            </button>
             <AudioWidget
               prefs={audio}
               isPlaying={ambience.isPlaying}
               blocked={ambience.blocked}
               energy={ambience.energy}
               onLevel={ambience.setLevel}
+              onSelectTrack={ambience.selectTrack}
               onSolo={ambience.solo}
               onToggle={ambience.togglePlay}
               onVolume={(v) => actions.setAudio({ volume: v })}
@@ -237,7 +344,8 @@ function Index() {
         </header>
 
         <main className="mt-6 grid content-start gap-5 lg:mt-10 lg:flex-1 lg:grid-cols-12 lg:gap-6">
-          <div ref={timerCardRef} className="lg:col-span-7 xl:col-span-8">
+          <div className="flex flex-col gap-5 lg:col-span-7 lg:gap-6 xl:col-span-8">
+            <div ref={timerCardRef}>
             <TimerCard
               timer={timer}
               now={now}
@@ -250,6 +358,8 @@ function Index() {
               onBeginNext={beginNext}
               onDurations={actions.setDurations}
             />
+            </div>
+            <GridRoom now={gridNow} messages={gridChat} pulse={gridPulse} />
           </div>
           <div className="flex flex-col gap-5 lg:col-span-5 xl:col-span-4">
             <PomoBot
@@ -274,6 +384,7 @@ function Index() {
               onToggle={actions.toggleTask}
               onRemove={actions.removeTask}
               onClearDone={actions.clearCompleted}
+              onCompleted={() => pingGrid("task")}
             />
           </div>
         </main>

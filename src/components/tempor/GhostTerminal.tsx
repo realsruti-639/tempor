@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { CornerDownLeft } from "lucide-react";
+import { BrainCircuit, CornerDownLeft, TerminalSquare } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { COMMAND_HINTS, describeCommand, parseCommand, type Command } from "@/lib/tempor/commands";
+import { AI_PREFIX, breakdownStress } from "@/lib/tempor/deck";
 
 interface Props {
   open: boolean;
@@ -17,7 +18,10 @@ export function GhostTerminal({ open, onOpenChange, onRun }: Props) {
   const [active, setActive] = useState(0);
   const [error, setError] = useState<{ id: number; text: string } | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [tab, setTab] = useState<"command" | "dump">("command");
+  const [dump, setDump] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const dumpRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,8 +44,26 @@ export function GhostTerminal({ open, onOpenChange, onRun }: Props) {
       setError(null);
       setShowHelp(false);
       setActive(0);
+      setDump("");
+      setTab("command");
     }
   }, [open]);
+
+  const switchTab = (t: "command" | "dump") => {
+    setTab(t);
+    setError(null);
+    requestAnimationFrame(() => (t === "dump" ? dumpRef.current : inputRef.current)?.focus());
+  };
+
+  const dumpPreview = useMemo(() => (dump.trim().length >= 3 ? breakdownStress(dump) : []), [dump]);
+  const submitDump = () => {
+    const text = dump.trim();
+    if (text.length < 3) {
+      setError({ id: Date.now(), text: "Tell the Deck Officer a little more first." });
+      return;
+    }
+    if (onRun({ type: "stress", text: text.slice(0, 300) })) onOpenChange(false);
+  };
 
   const parsed = useMemo(() => parseCommand(value), [value]);
   const hints = useMemo(() => {
@@ -114,9 +136,101 @@ export function GhostTerminal({ open, onOpenChange, onRun }: Props) {
           >
             <DialogPrimitive.Title className="sr-only">Ghost Terminal</DialogPrimitive.Title>
             <DialogPrimitive.Description className="sr-only">
-              Type a command such as /add, /start, /pause or /break. Press Escape to close.
+              Type a command such as /add, /start, /pause, /break or /stress, or switch to Brain dump. Press Escape to close.
             </DialogPrimitive.Description>
 
+            <div role="tablist" aria-label="Terminal mode" className="flex gap-1 border-b border-glass-border px-3 pt-3">
+              {(
+                [
+                  ["command", "Command", TerminalSquare],
+                  ["dump", "Brain dump", BrainCircuit],
+                ] as const
+              ).map(([id, label, Icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === id}
+                  onClick={() => switchTab(id)}
+                  className={cn(
+                    "-mb-px flex items-center gap-1.5 rounded-t-lg border-b-2 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    tab === id
+                      ? id === "dump"
+                        ? "border-orchid text-orchid"
+                        : "border-mode text-mode"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "dump" ? (
+              <div>
+                <div className="px-5 pt-4">
+                  <label htmlFor="brain-dump" className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                    What’s weighing on you?
+                  </label>
+                  <textarea
+                    id="brain-dump"
+                    ref={dumpRef}
+                    value={dump}
+                    rows={2}
+                    maxLength={300}
+                    onChange={(e) => {
+                      setDump(e.target.value);
+                      setError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        submitDump();
+                      }
+                    }}
+                    spellCheck={false}
+                    placeholder="I have too much code to review"
+                    className="mt-2 w-full resize-none rounded-xl border border-glass-border bg-background/40 px-3 py-2.5 font-mono text-sm text-foreground caret-[var(--orchid)] outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-orchid/50 focus-visible:ring-2 focus-visible:ring-orchid/25"
+                  />
+                </div>
+                <div className="px-5 pb-3 pt-2">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground/70">
+                    deck officer · proposed breakdown
+                  </p>
+                  {dumpPreview.length === 0 ? (
+                    <p className="mt-2 font-mono text-xs text-muted-foreground/60">
+                      // type it the way you’d say it. the officer splits it into 3 moves.
+                    </p>
+                  ) : (
+                    <ol className="mt-2 space-y-1">
+                      {dumpPreview.map((t, i) => (
+                        <li
+                          key={i}
+                          className="animate-log-in font-mono text-xs leading-relaxed"
+                          style={{ animationDelay: `${i * 60}ms` }}
+                        >
+                          <span className="text-orchid">{AI_PREFIX}</span> <span className="text-foreground/90">{t}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t border-glass-border px-5 py-2.5 font-mono text-xs">
+                  <span className={cn("truncate", error ? "text-destructive" : "text-muted-foreground")} aria-live="polite">
+                    {error ? error.text : "Enter queues all three · shift+enter for a new line"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={submitDump}
+                    disabled={dumpPreview.length === 0}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-orchid/40 px-2.5 py-1 text-[11px] uppercase tracking-widest text-orchid transition-colors hover:bg-orchid/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orchid/50 disabled:opacity-30"
+                  >
+                    <CornerDownLeft className="h-3 w-3" /> optimize
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="flex items-center gap-3 px-5 py-4">
               <span aria-hidden className="font-mono text-lg text-mode">
                 &gt;
@@ -151,7 +265,17 @@ export function GhostTerminal({ open, onOpenChange, onRun }: Props) {
               )}
             </div>
 
-            {hints.length > 0 && (
+            {parsed.type === "stress" && (
+              <ol className="space-y-1 border-t border-glass-border px-5 py-2.5" aria-label="Proposed sub-tasks">
+                {breakdownStress(parsed.text).map((t, i) => (
+                  <li key={i} className="font-mono text-xs">
+                    <span className="text-orchid">{AI_PREFIX}</span> <span className="text-foreground/85">{t}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+
+            {hints.length > 0 && parsed.type !== "stress" && (
               <ul role="listbox" aria-label="Commands" className="border-t border-glass-border p-2">
                 {hints.map((h, i) => (
                   <li key={h.usage} role="option" aria-selected={i === active}>
@@ -173,6 +297,9 @@ export function GhostTerminal({ open, onOpenChange, onRun }: Props) {
                   </li>
                 ))}
               </ul>
+            )}
+
+              </>
             )}
 
             <p className="border-t border-glass-border px-5 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">

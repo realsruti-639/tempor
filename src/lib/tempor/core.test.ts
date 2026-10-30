@@ -18,7 +18,7 @@ import {
 } from "./core";
 
 const D = DEFAULT_DURATIONS;
-const P0: Progress = { completedFocus: 0, lastCountedSessionId: null, credits: 0 };
+const P0: Progress = { completedFocus: 0, lastCountedSessionId: null, credits: 0, streak: 0 };
 const MIN = 60_000;
 
 describe("timer", () => {

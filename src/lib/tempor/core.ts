@@ -46,6 +46,18 @@ export interface Progress {
   lastCountedSessionId: string | null;
   /** Grid Credits earned from focus sessions (spent on upgrades). */
   credits: number;
+  /** Focus sessions completed in a row without abandoning one. */
+  streak: number;
+}
+
+/** True when leaving this timer would abandon a focus session (breaks the streak). */
+export function abandonsFocus(t: TimerState): boolean {
+  return t.mode === "focus" && (t.status === "running" || t.status === "paused");
+}
+
+/** Streak after the user resets or switches away from the current timer. */
+export function streakAfterLeaving(t: TimerState, progress: Progress): Progress {
+  return abandonsFocus(t) && progress.streak !== 0 ? { ...progress, streak: 0 } : progress;
 }
 
 export const CREDITS_PER_FULL_SESSION = 100;

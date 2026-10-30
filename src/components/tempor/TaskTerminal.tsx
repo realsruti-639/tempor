@@ -11,7 +11,17 @@ const SUCCESS_LINES = [
   "Logged and filed. That counts.",
 ];
 
+export type LogTone = "success" | "system" | "info";
+export interface LogEntry {
+  id: number;
+  tag: string;
+  text: string;
+  tone: LogTone;
+}
+
 interface Props {
+  logs: LogEntry[];
+  onLog: (tag: string, text: string, tone: LogTone) => void;
   tasks: Task[];
   onAdd: (text: string) => void;
   onToggle: (id: string) => void;
@@ -19,9 +29,8 @@ interface Props {
   onClearDone: () => void;
 }
 
-export function TaskTerminal({ tasks, onAdd, onToggle, onRemove, onClearDone }: Props) {
+export function TaskTerminal({ logs, onLog, tasks, onAdd, onToggle, onRemove, onClearDone }: Props) {
   const [text, setText] = useState("");
-  const [log, setLog] = useState<{ id: number; line: string } | null>(null);
   const [showDone, setShowDone] = useState(false);
   const logCount = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -33,7 +42,7 @@ export function TaskTerminal({ tasks, onAdd, onToggle, onRemove, onClearDone }: 
     onToggle(t.id);
     const line = SUCCESS_LINES[logCount.current % SUCCESS_LINES.length] ?? SUCCESS_LINES[0]!;
     logCount.current += 1;
-    setLog({ id: logCount.current, line });
+    onLog("SUCCESS", line, "success");
   };
 
   return (
@@ -176,13 +185,27 @@ export function TaskTerminal({ tasks, onAdd, onToggle, onRemove, onClearDone }: 
         )}
       </div>
 
-      <div aria-live="polite" className="min-h-10 border-t border-glass-border bg-background/30 px-5 py-2.5 font-mono text-xs">
-        {log ? (
-          <p key={log.id} className="animate-log-in text-terminal">
-            [SUCCESS]: <span className="text-terminal/80">{log.line}</span>
-          </p>
-        ) : (
+      <div
+        aria-live="polite"
+        className="min-h-10 space-y-1 border-t border-glass-border bg-background/30 px-5 py-2.5 font-mono text-xs"
+      >
+        {logs.length === 0 ? (
           <p className="text-muted-foreground/60">[SYS]: terminal online.</p>
+        ) : (
+          logs.map((l, i) => (
+            <p
+              key={l.id}
+              className={cn(
+                "transition-opacity duration-500",
+                i === logs.length - 1 ? "animate-log-in opacity-100" : "opacity-45",
+                l.tone === "success" && "text-terminal",
+                l.tone === "system" && "text-amber",
+                l.tone === "info" && "text-cyan",
+              )}
+            >
+              [{l.tag}]: <span className="opacity-85">{l.text}</span>
+            </p>
+          ))
         )}
       </div>
     </section>

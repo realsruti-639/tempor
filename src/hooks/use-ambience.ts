@@ -1,17 +1,12 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
 
 import { getEngine } from "@/lib/tempor/audio";
-import {
-  CHANNEL_IDS,
-  DEFAULT_LEVELS,
-  type AudioPrefs,
-  type ChannelId,
-  type ChannelLevels,
-} from "@/lib/tempor/storage";
+import { CHANNEL_IDS, DEFAULT_LEVELS, TRACKS, type ChannelId, type TrackId } from "@/lib/tempor/tracks";
+import type { AudioPrefs } from "@/lib/tempor/storage";
 
 /**
  * Bridges saved mixer prefs to the Web Audio engine.
- * Nothing plays until the user presses play or moves a fader.
+ * Nothing plays until the user presses play, picks a track or moves a fader.
  */
 export function useAmbience(prefs: AudioPrefs, update: (p: Partial<AudioPrefs>) => void) {
   const [, rerender] = useReducer((x: number) => x + 1, 0);
@@ -29,34 +24,41 @@ export function useAmbience(prefs: AudioPrefs, update: (p: Partial<AudioPrefs>) 
 
   const isPlaying = mounted && getEngine().isPlaying;
 
-  const startWith = useCallback(async (levels: ChannelLevels) => {
-    const ok = await getEngine().play(levels);
-    setBlocked(!ok);
-  }, []);
-
-  const applyLevels = useCallback(
-    (levels: ChannelLevels) => {
-      update({ levels });
+  const apply = useCallback(
+    async (next: Pick<AudioPrefs, "levels" | "tracks">, autoplay = true) => {
+      update(next);
       const e = getEngine();
-      if (e.isPlaying) e.setLevels(levels);
-      else if (CHANNEL_IDS.some((c) => levels[c] > 0)) void startWith(levels);
+      if (e.isPlaying) e.setMix(next);
+      else if (autoplay && CHANNEL_IDS.some((c) => next.levels[c] > 0)) {
+        const ok = await e.play(next);
+        setBlocked(!ok);
+      }
     },
-    [update, startWith],
+    [update],
   );
 
   const setLevel = useCallback(
-    (id: ChannelId, v: number) => applyLevels({ ...prefs.levels, [id]: v }),
-    [prefs.levels, applyLevels],
+    (id: ChannelId, v: number) => void apply({ levels: { ...prefs.levels, [id]: v }, tracks: prefs.tracks }),
+    [prefs.levels, prefs.tracks, apply],
+  );
+
+  /** Pick a track for its channel; raises a silent channel so the choice is audible. */
+  const selectTrack = useCallback(
+    (id: TrackId) => {
+      const ch = TRACKS[id].channel;
+      const levels = { ...prefs.levels, [ch]: prefs.levels[ch] > 0.05 ? prefs.levels[ch] : 0.7 };
+      void apply({ levels, tracks: { ...prefs.tracks, [ch]: id } });
+    },
+    [prefs.levels, prefs.tracks, apply],
   );
 
   /** Cross-fade so only this channel remains. */
   const solo = useCallback(
     (id: ChannelId) => {
-      const lv = { rain: 0, alpha: 0, stream: 0 } as ChannelLevels;
-      lv[id] = Math.max(prefs.levels[id], 0.7);
-      applyLevels(lv);
+      const levels = { lofi: 0, alpha: 0, atmos: 0, [id]: Math.max(prefs.levels[id], 0.7) };
+      void apply({ levels, tracks: prefs.tracks });
     },
-    [prefs.levels, applyLevels],
+    [prefs.levels, prefs.tracks, apply],
   );
 
   const togglePlay = useCallback(() => {
@@ -65,13 +67,13 @@ export function useAmbience(prefs: AudioPrefs, update: (p: Partial<AudioPrefs>) 
       e.pause();
       return;
     }
-    let lv = prefs.levels;
-    if (!CHANNEL_IDS.some((c) => lv[c] > 0)) {
-      lv = { ...DEFAULT_LEVELS };
-      update({ levels: lv });
+    let levels = prefs.levels;
+    if (!CHANNEL_IDS.some((c) => levels[c] > 0)) {
+      levels = { ...DEFAULT_LEVELS };
+      update({ levels });
     }
-    void startWith(lv);
-  }, [prefs.levels, update, startWith]);
+    void e.play({ levels, tracks: prefs.tracks }).then((ok) => setBlocked(!ok));
+  }, [prefs.levels, prefs.tracks, update]);
 
   /** Call from a user gesture (e.g. Start) so the completion chime is allowed later. */
   const prepareChime = useCallback(() => {
@@ -84,5 +86,5 @@ export function useAmbience(prefs: AudioPrefs, update: (p: Partial<AudioPrefs>) 
 
   const energy = useCallback(() => getEngine().energy(), []);
 
-  return { isPlaying, blocked, setLevel, solo, togglePlay, prepareChime, chime, energy };
+  return { isPlaying, blocked, setLevel, selectTrack, solo, togglePlay, prepareChime, chime, energy };
 }

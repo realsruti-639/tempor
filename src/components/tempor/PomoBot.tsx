@@ -51,15 +51,15 @@ function Aura() {
 function Wings() {
   return (
     <g aria-hidden>
-      <g className="animate-wing origin-right [transform-box:fill-box]">
-        <Px r={[[2, 17, 7, 1]]} className="fill-cyan" />
-        <Px r={[[1, 18, 8, 2], [2, 20, 7, 2]]} className="fill-cyan/55" />
-        <Px r={[[3, 22, 6, 1], [5, 23, 4, 1]]} className="fill-lavender/45" />
+      <g className="animate-wing origin-bottom-right [transform-box:fill-box]">
+        <Px r={[[2, 13, 4, 1], [1, 14, 6, 1], [1, 15, 7, 1], [2, 16, 7, 1], [3, 17, 6, 1], [4, 18, 5, 1], [5, 19, 4, 1]]} className="fill-cyan/40" />
+        <Px r={[[3, 15, 4, 1], [4, 17, 3, 1]]} className="fill-lavender/60" />
+        <Px r={[[3, 12, 2, 1], [2, 13, 1, 1], [1, 14, 1, 2]]} className="fill-cyan" />
       </g>
-      <g className="animate-wing origin-left [transform-box:fill-box]">
-        <Px r={[[23, 17, 7, 1]]} className="fill-cyan" />
-        <Px r={[[23, 18, 8, 2], [23, 20, 7, 2]]} className="fill-cyan/55" />
-        <Px r={[[23, 22, 6, 1], [23, 23, 4, 1]]} className="fill-lavender/45" />
+      <g className="animate-wing origin-bottom-left [transform-box:fill-box]">
+        <Px r={[[26, 13, 4, 1], [25, 14, 6, 1], [24, 15, 7, 1], [23, 16, 7, 1], [23, 17, 6, 1], [23, 18, 5, 1], [23, 19, 4, 1]]} className="fill-cyan/40" />
+        <Px r={[[25, 15, 4, 1], [25, 17, 3, 1]]} className="fill-lavender/60" />
+        <Px r={[[27, 12, 2, 1], [29, 13, 1, 1], [30, 14, 1, 2]]} className="fill-cyan" />
       </g>
     </g>
   );

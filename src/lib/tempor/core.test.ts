@@ -4,6 +4,8 @@ import {
   BOT_LINES,
   DEFAULT_DURATIONS,
   botStateFor,
+  creditsForSession,
+  isRestPhase,
   createReady,
   needsSwitchConfirm,
   pauseTimer,
@@ -16,7 +18,7 @@ import {
 } from "./core";
 
 const D = DEFAULT_DURATIONS;
-const P0: Progress = { completedFocus: 0, lastCountedSessionId: null };
+const P0: Progress = { completedFocus: 0, lastCountedSessionId: null, credits: 0 };
 const MIN = 60_000;
 
 describe("timer", () => {
@@ -122,5 +124,39 @@ describe("Pomo-Bot", () => {
   it("uses break lines during breaks", () => {
     expect(botStateFor(startTimer(createReady("short", D), 0, D, "b"), 0, 10)).toBe("shortBreak");
     expect(botStateFor(startTimer(createReady("long", D), 0, D, "b"), 0, 10)).toBe("longBreak");
+  });
+});
+
+describe("Grid Credits", () => {
+  it("awards +100 for a completed 25-minute focus session", () => {
+    const t = startTimer(createReady("focus", D), 0, D, "s1");
+    expect(settle(t, P0, 25 * MIN).progress.credits).toBe(100);
+  });
+
+  it("awards credits only once per session", () => {
+    const t = startTimer(createReady("focus", D), 0, D, "s1");
+    const a = settle(t, P0, 25 * MIN);
+    expect(settle(t, a.progress, 26 * MIN).progress.credits).toBe(100);
+  });
+
+  it("never awards credits for breaks or resets", () => {
+    const b = startTimer(createReady("short", D), 0, D, "b1");
+    expect(settle(b, P0, 5 * MIN).progress.credits).toBe(0);
+    const r = resetTimer(startTimer(createReady("focus", D), 0, D, "s2"), D);
+    expect(settle(r, P0, 30 * MIN).progress.credits).toBe(0);
+  });
+
+  it("caps at 100 for longer sessions and pro-rates shorter ones", () => {
+    expect(creditsForSession(50 * MIN)).toBe(100);
+    expect(creditsForSession(10 * MIN)).toBe(40);
+  });
+});
+
+describe("cooldown phase", () => {
+  it("turns on when focus hits 00:00 and during breaks", () => {
+    const t = startTimer(createReady("focus", D), 0, D, "s1");
+    expect(isRestPhase(t)).toBe(false);
+    expect(isRestPhase(settle(t, P0, 25 * MIN).timer)).toBe(true);
+    expect(isRestPhase(createReady("short", D))).toBe(true);
   });
 });

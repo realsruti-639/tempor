@@ -1,9 +1,12 @@
-# Tempor v2 roadmap
+# Tempor roadmap
 
-- [x] Ghost Terminal: Ctrl/Cmd+K command overlay (/add, /start, /pause, /break, Esc)
-- [x] Ambient mixer: Neon Rain, Deep Space Alpha Waves, Data-Stream Static with cross-fades
-- [x] Particle field reacting to audio + remaining time (only while running and playing)
-- [x] Grid Credits: +100 per 25-min focus session, burst on completion
-- [x] System Upgrades drawer: Hacker Shades 100, Cybernetic Wings 300, Neon Matrix Aura 500 (persisted)
-- [x] Cooldown phase: amber + lavender full-screen shift at 00:00, bot tea/book/sleep, [SYSTEM STATUS] log
-- [x] Tests for parser, credits, purchases, storage migration
+## v2 (done)
+- [x] Ghost Terminal, ambient mixer, particle field, Grid Credits, System Upgrades, cooldown phase, tests
+
+## v3
+- [ ] Mixer: 9 generative tracks in 3 channels (Cyber-LoFi Beats, Cognitive Alpha Waves, Atmospheric Immersion), categorized scrollable picker, migrate old saves
+- [ ] Deck Officer: Focus Assistant Log with typed lines; 2-consecutive-focus greeting (exact copy) + prepares synth track
+- [ ] /stress brain dump in Ghost Terminal → 3 `[AI-OPTIMIZED]:` sub-tasks (local, no server)
+- [ ] Grid Room panel: Akira_Focus, Byte_Me, Neon_Ghost with live phase tickers; pulse + agent chat on task / focus completion
+- [ ] Overclock Mode: glowing toggle, hides everything but the timer, breathing neon grid, digital-rain particles, Esc exits
+- [ ] Tests: streak rule, /stress parsing + breakdown, agent tickers, audio save migration

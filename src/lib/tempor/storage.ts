@@ -12,12 +12,14 @@ import {
   type Status,
   type TimerState,
 } from "./core";
+import { COSMETIC_IDS, type CosmeticId } from "./upgrades";
 
 export const STORAGE_KEY = "tempor:state";
-export const STORAGE_VERSION = 1;
+export const STORAGE_VERSION = 2;
 
-export type TrackId = "rain" | "synth" | "static" | "off";
-export const TRACK_IDS: TrackId[] = ["rain", "synth", "static", "off"];
+export type ChannelId = "rain" | "alpha" | "stream";
+export const CHANNEL_IDS: ChannelId[] = ["rain", "alpha", "stream"];
+export type ChannelLevels = Record<ChannelId, number>;
 
 export interface Task {
   id: string;
@@ -28,9 +30,15 @@ export interface Task {
 }
 
 export interface AudioPrefs {
-  track: TrackId;
-  volume: number; // 0..1
+  /** Per-channel mixer level 0..1. */
+  levels: ChannelLevels;
+  volume: number; // master 0..1
   chime: boolean;
+}
+
+export interface Cosmetics {
+  owned: CosmeticId[];
+  equipped: CosmeticId[];
 }
 
 export interface SavedState {
@@ -40,29 +48,33 @@ export interface SavedState {
   progress: Progress;
   tasks: Task[];
   audio: AudioPrefs;
+  cosmetics: Cosmetics;
   botFrozen: boolean;
 }
 
-export const DEFAULT_AUDIO: AudioPrefs = { track: "off", volume: 0.5, chime: true };
+export const DEFAULT_LEVELS: ChannelLevels = { rain: 0.7, alpha: 0, stream: 0 };
+export const DEFAULT_AUDIO: AudioPrefs = { levels: { ...DEFAULT_LEVELS }, volume: 0.5, chime: true };
 
 export function defaultState(): SavedState {
   return {
     version: STORAGE_VERSION,
     durations: { ...DEFAULT_DURATIONS },
     timer: createReady("focus", DEFAULT_DURATIONS),
-    progress: { completedFocus: 0, lastCountedSessionId: null },
+    progress: { completedFocus: 0, lastCountedSessionId: null, credits: 0 },
     tasks: [],
-    audio: { ...DEFAULT_AUDIO },
+    audio: { ...DEFAULT_AUDIO, levels: { ...DEFAULT_LEVELS } },
+    cosmetics: { owned: [], equipped: [] },
     botFrozen: false,
   };
 }
 
 type Key =
   | "id" | "text" | "done" | "createdAt" | "completedAt"
-  | "track" | "volume" | "chime"
-  | "durations" | "timer" | "progress" | "tasks" | "audio" | "botFrozen"
+  | "track" | "levels" | "volume" | "chime"
+  | "durations" | "timer" | "progress" | "tasks" | "audio" | "cosmetics" | "botFrozen"
+  | "owned" | "equipped" | "credits"
   | "mode" | "status" | "remainingMs" | "endAt" | "sessionId" | "sessionStartedAt" | "pausedAt"
-  | "completedFocus" | "lastCountedSessionId" | Mode;
+  | "sessionDurationMs" | "completedFocus" | "lastCountedSessionId" | Mode | ChannelId;
 type Bag = Partial<Record<Key, unknown>>;
 
 const isObj = (v: unknown): v is Bag =>
@@ -70,6 +82,7 @@ const isObj = (v: unknown): v is Bag =>
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const numOrNull = (v: unknown): number | null => (isNum(v) ? v : null);
 const strOrNull = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 function parseDurations(v: unknown): Durations {
   const d = { ...DEFAULT_DURATIONS };
@@ -89,10 +102,13 @@ function parseTimer(v: unknown, durations: Durations): TimerState {
   if (status === "ready") return base;
 
   const remaining = isNum(v.remainingMs) ? Math.min(full, Math.max(0, v.remainingMs)) : full;
+  const savedLen = numOrNull(v.sessionDurationMs);
   const common = {
     ...base,
     sessionId: strOrNull(v.sessionId),
     sessionStartedAt: numOrNull(v.sessionStartedAt),
+    // older saves have no session length: assume the configured one
+    sessionDurationMs: savedLen !== null && savedLen > 0 ? savedLen : full,
   };
 
   if (status === "running") {
@@ -107,12 +123,12 @@ function parseTimer(v: unknown, durations: Durations): TimerState {
 }
 
 function parseProgress(v: unknown): Progress {
-  if (!isObj(v)) return { completedFocus: 0, lastCountedSessionId: null };
-  return {
-    completedFocus:
-      isNum(v.completedFocus) && v.completedFocus >= 0 ? Math.floor(v.completedFocus) : 0,
-    lastCountedSessionId: strOrNull(v.lastCountedSessionId),
-  };
+  const p: Progress = { completedFocus: 0, lastCountedSessionId: null, credits: 0 };
+  if (!isObj(v)) return p;
+  if (isNum(v.completedFocus) && v.completedFocus >= 0) p.completedFocus = Math.floor(v.completedFocus);
+  p.lastCountedSessionId = strOrNull(v.lastCountedSessionId);
+  if (isNum(v.credits) && v.credits >= 0) p.credits = Math.floor(v.credits);
+  return p;
 }
 
 function parseTasks(v: unknown): Task[] {
@@ -135,13 +151,33 @@ function parseTasks(v: unknown): Task[] {
   return out;
 }
 
+const LEGACY_TRACK: Record<string, ChannelId> = { rain: "rain", synth: "alpha", static: "stream" };
+
 function parseAudio(v: unknown): AudioPrefs {
-  const a = { ...DEFAULT_AUDIO };
+  const a: AudioPrefs = { ...DEFAULT_AUDIO, levels: { ...DEFAULT_LEVELS } };
   if (!isObj(v)) return a;
-  if (TRACK_IDS.includes(v.track as TrackId)) a.track = v.track as TrackId;
-  if (isNum(v.volume)) a.volume = Math.min(1, Math.max(0, v.volume));
+  if (isObj(v.levels)) {
+    const lv = v.levels;
+    for (const c of CHANNEL_IDS) if (isNum(lv[c])) a.levels[c] = clamp01(lv[c] as number);
+  } else if (typeof v.track === "string" && LEGACY_TRACK[v.track]) {
+    // v1 single-track save → mixer levels
+    a.levels = { rain: 0, alpha: 0, stream: 0, [LEGACY_TRACK[v.track]!]: 0.7 };
+  }
+  if (isNum(v.volume)) a.volume = clamp01(v.volume);
   if (typeof v.chime === "boolean") a.chime = v.chime;
   return a;
+}
+
+function parseCosmetics(v: unknown): Cosmetics {
+  const c: Cosmetics = { owned: [], equipped: [] };
+  if (!isObj(v)) return c;
+  const ids = (x: unknown) =>
+    Array.isArray(x)
+      ? [...new Set(x.filter((i): i is CosmeticId => COSMETIC_IDS.includes(i as CosmeticId)))]
+      : [];
+  c.owned = ids(v.owned);
+  c.equipped = ids(v.equipped).filter((i) => c.owned.includes(i));
+  return c;
 }
 
 export function parseSaved(raw: string | null | undefined): SavedState {
@@ -161,6 +197,7 @@ export function parseSaved(raw: string | null | undefined): SavedState {
     progress: parseProgress(data.progress),
     tasks: parseTasks(data.tasks),
     audio: parseAudio(data.audio),
+    cosmetics: parseCosmetics(data.cosmetics),
     botFrozen: data.botFrozen === true,
   };
 }

@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
 
 import { getEngine } from "@/lib/tempor/audio";
-import type { AudioPrefs, TrackId } from "@/lib/tempor/storage";
+import {
+  CHANNEL_IDS,
+  DEFAULT_LEVELS,
+  type AudioPrefs,
+  type ChannelId,
+  type ChannelLevels,
+} from "@/lib/tempor/storage";
 
 /**
- * Bridges saved audio prefs to the Web Audio engine.
- * Nothing plays until the user explicitly picks a track or presses play.
+ * Bridges saved mixer prefs to the Web Audio engine.
+ * Nothing plays until the user presses play or moves a fader.
  */
 export function useAmbience(prefs: AudioPrefs, update: (p: Partial<AudioPrefs>) => void) {
   const [, rerender] = useReducer((x: number) => x + 1, 0);
@@ -14,36 +20,58 @@ export function useAmbience(prefs: AudioPrefs, update: (p: Partial<AudioPrefs>) 
 
   useEffect(() => {
     setMounted(true);
-    const unsub = getEngine().subscribe(rerender);
-    return () => {
-      unsub();
-    };
+    return getEngine().subscribe(rerender);
   }, []);
 
   useEffect(() => {
     if (mounted) getEngine().setVolume(prefs.volume);
   }, [prefs.volume, mounted]);
 
-  const playTrack = useCallback(async (id: TrackId) => {
-    const ok = await getEngine().play(id);
+  const isPlaying = mounted && getEngine().isPlaying;
+
+  const startWith = useCallback(async (levels: ChannelLevels) => {
+    const ok = await getEngine().play(levels);
     setBlocked(!ok);
   }, []);
 
-  const selectTrack = useCallback(
-    (id: TrackId) => {
-      update({ track: id });
-      void playTrack(id);
+  const applyLevels = useCallback(
+    (levels: ChannelLevels) => {
+      update({ levels });
+      const e = getEngine();
+      if (e.isPlaying) e.setLevels(levels);
+      else if (CHANNEL_IDS.some((c) => levels[c] > 0)) void startWith(levels);
     },
-    [update, playTrack],
+    [update, startWith],
   );
 
-  const isPlaying = mounted && getEngine().isPlaying;
+  const setLevel = useCallback(
+    (id: ChannelId, v: number) => applyLevels({ ...prefs.levels, [id]: v }),
+    [prefs.levels, applyLevels],
+  );
+
+  /** Cross-fade so only this channel remains. */
+  const solo = useCallback(
+    (id: ChannelId) => {
+      const lv = { rain: 0, alpha: 0, stream: 0 } as ChannelLevels;
+      lv[id] = Math.max(prefs.levels[id], 0.7);
+      applyLevels(lv);
+    },
+    [prefs.levels, applyLevels],
+  );
 
   const togglePlay = useCallback(() => {
     const e = getEngine();
-    if (e.isPlaying) e.stop();
-    else if (prefs.track !== "off") void playTrack(prefs.track);
-  }, [prefs.track, playTrack]);
+    if (e.isPlaying) {
+      e.pause();
+      return;
+    }
+    let lv = prefs.levels;
+    if (!CHANNEL_IDS.some((c) => lv[c] > 0)) {
+      lv = { ...DEFAULT_LEVELS };
+      update({ levels: lv });
+    }
+    void startWith(lv);
+  }, [prefs.levels, update, startWith]);
 
   /** Call from a user gesture (e.g. Start) so the completion chime is allowed later. */
   const prepareChime = useCallback(() => {
@@ -54,5 +82,7 @@ export function useAmbience(prefs: AudioPrefs, update: (p: Partial<AudioPrefs>) 
     if (prefs.chime) getEngine().chime();
   }, [prefs.chime]);
 
-  return { isPlaying, blocked, selectTrack, togglePlay, prepareChime, chime };
+  const energy = useCallback(() => getEngine().energy(), []);
+
+  return { isPlaying, blocked, setLevel, solo, togglePlay, prepareChime, chime, energy };
 }

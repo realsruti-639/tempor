@@ -18,7 +18,8 @@ describe("saved-state recovery", () => {
         progress: { completedFocus: 6 },
         durations: { focus: "abc", short: 10 },
         timer: { status: "exploded" },
-        audio: { track: "jazz", volume: 3 },
+        audio: { levels: { rain: 2, alpha: "x", stream: 0.3 }, volume: 3 },
+        cosmetics: { owned: ["shades", "crown"], equipped: ["shades", "wings"] },
       }),
     );
     expect(s.tasks).toHaveLength(1);
@@ -26,8 +27,9 @@ describe("saved-state recovery", () => {
     expect(s.progress.completedFocus).toBe(6);
     expect(s.durations).toEqual({ focus: 25, short: 10, long: 15 });
     expect(s.timer.status).toBe("ready");
-    expect(s.audio.track).toBe("off");
+    expect(s.audio.levels).toEqual({ rain: 1, alpha: 0, stream: 0.3 });
     expect(s.audio.volume).toBe(1);
+    expect(s.cosmetics).toEqual({ owned: ["shades"], equipped: ["shades"] });
   });
 
   it("restores a paused timer with the same remaining time", () => {
@@ -48,5 +50,18 @@ describe("saved-state recovery", () => {
     const s = parseSaved(JSON.stringify({ durations: { focus: 50 } }));
     expect(s.timer.mode).toBe("focus");
     expect(s.timer.remainingMs).toBe(50 * 60_000);
+  });
+
+  it("keeps credits and equipped cosmetics across reloads", () => {
+    const saved = { ...defaultState(), progress: { completedFocus: 5, lastCountedSessionId: "x", credits: 250 }, cosmetics: { owned: ["shades", "wings"], equipped: ["wings"] } };
+    const s = parseSaved(JSON.stringify(saved));
+    expect(s.progress.credits).toBe(250);
+    expect(s.cosmetics).toEqual({ owned: ["shades", "wings"], equipped: ["wings"] });
+  });
+
+  it("migrates a v1 single-track sound choice into mixer levels", () => {
+    const s = parseSaved(JSON.stringify({ audio: { track: "static", volume: 0.4 } }));
+    expect(s.audio.levels).toEqual({ rain: 0, alpha: 0, stream: 0.7 });
+    expect(s.progress.credits).toBe(0);
   });
 });

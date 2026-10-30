@@ -128,7 +128,6 @@ export function GhostTerminal({ open, onOpenChange, onRun }: Props) {
             e.preventDefault();
             inputRef.current?.focus();
           }}
-          aria-describedby={undefined}
           className="fixed left-1/2 top-[14vh] z-50 w-[min(640px,calc(100vw-2rem))] -translate-x-1/2 outline-none"
         >
           <div

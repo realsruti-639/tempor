@@ -31,7 +31,7 @@ export function TaskTerminal({ tasks, onAdd, onToggle, onRemove, onClearDone }: 
 
   const complete = (t: Task) => {
     onToggle(t.id);
-    const line = SUCCESS_LINES[logCount.current % SUCCESS_LINES.length];
+    const line = SUCCESS_LINES[logCount.current % SUCCESS_LINES.length] ?? SUCCESS_LINES[0]!;
     logCount.current += 1;
     setLog({ id: logCount.current, line });
   };

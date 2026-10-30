@@ -22,7 +22,7 @@ describe("saved-state recovery", () => {
       }),
     );
     expect(s.tasks).toHaveLength(1);
-    expect(s.tasks[0].text).toBe("Write intro");
+    expect(s.tasks[0]?.text).toBe("Write intro");
     expect(s.progress.completedFocus).toBe(6);
     expect(s.durations).toEqual({ focus: 25, short: 10, long: 15 });
     expect(s.timer.status).toBe("ready");

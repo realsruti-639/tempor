@@ -257,7 +257,8 @@ export class AmbienceEngine {
     let step = 0;
     const playChord = () => {
       const t = ctx.currentTime + 0.05;
-      chords[step % chords.length].forEach((note) => {
+      const chord = chords[step % chords.length]!;
+      chord.forEach((note) => {
         [-6, 6].forEach((det) => {
           const o = ctx.createOscillator();
           o.type = "triangle";
@@ -276,7 +277,7 @@ export class AmbienceEngine {
       // soft bass root
       const b = ctx.createOscillator();
       b.type = "sine";
-      b.frequency.value = mtof(chords[step % chords.length][0] - 12);
+      b.frequency.value = mtof(chord[0]! - 12);
       const bg = ctx.createGain();
       bg.gain.setValueAtTime(0, t);
       bg.gain.linearRampToValueAtTime(0.05, t + 1.5);
@@ -395,10 +396,12 @@ export class AmbienceEngine {
     const out = ctx.createGain();
     out.gain.value = 0.16 * Math.max(0.35, this.volume);
     out.connect(ctx.destination);
-    [
-      [76, 0],
-      [83, 0.2],
-    ].forEach(([note, delay]) => {
+    (
+      [
+        [76, 0],
+        [83, 0.2],
+      ] as const
+    ).forEach(([note, delay]) => {
       const t = ctx.currentTime + 0.03 + delay;
       const o = ctx.createOscillator();
       o.type = "sine";

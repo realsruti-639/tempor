@@ -119,7 +119,7 @@ export function AudioWidget({ prefs, isPlaying, blocked, onSelect, onToggle, onV
               value={[Math.round(prefs.volume * 100)]}
               max={100}
               step={1}
-              onValueChange={([v]) => onVolume(v / 100)}
+              onValueChange={([v]) => onVolume((v ?? 0) / 100)}
             />
             <span className="w-8 text-right font-mono text-xs tabular text-muted-foreground">
               {Math.round(prefs.volume * 100)}

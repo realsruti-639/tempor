@@ -9,6 +9,7 @@ import {
   resetTimer,
   settle,
   startTimer,
+  streakAfterLeaving,
   switchMode,
   type Durations,
   type Mode,
@@ -21,6 +22,7 @@ import {
   type AudioPrefs,
   type SavedState,
   type Task,
+  type TaskOrigin,
 } from "@/lib/tempor/storage";
 
 const newId = () =>
@@ -32,6 +34,8 @@ export interface CompletionInfo {
   mode: Mode;
   completedFocus: number;
   creditsAwarded: number;
+  /** Consecutive focus sessions, including this one. */
+  streak: number;
 }
 
 /**
@@ -93,6 +97,7 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
         mode: timer.mode,
         completedFocus: r.progress.completedFocus,
         creditsAwarded: r.progress.credits - progress.credits,
+        streak: r.progress.streak,
       });
     }
   }, [now, hydrated, timer, progress]);
@@ -126,7 +131,11 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
 
   const reset = useCallback(() => {
     setAnnouncement("");
-    setState((s) => ({ ...s, timer: resetTimer(s.timer, s.durations) }));
+    setState((s) => ({
+      ...s,
+      progress: streakAfterLeaving(s.timer, s.progress),
+      timer: resetTimer(s.timer, s.durations),
+    }));
   }, []);
 
   const setMode = useCallback((mode: Mode, autoStart = false) => {
@@ -135,7 +144,11 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
     setAnnouncement("");
     setState((s) => {
       const ready = switchMode(s.timer, mode, s.durations);
-      return { ...s, timer: autoStart ? startTimer(ready, t, s.durations, newId()) : ready };
+      return {
+        ...s,
+        progress: streakAfterLeaving(s.timer, s.progress),
+        timer: autoStart ? startTimer(ready, t, s.durations, newId()) : ready,
+      };
     });
   }, []);
 
@@ -147,17 +160,20 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
     }));
   }, []);
 
-  const addTask = useCallback((text: string) => {
-    const clean = text.trim().slice(0, 200);
-    if (!clean) return;
+  const addTasks = useCallback((texts: string[], origin: TaskOrigin = "user") => {
+    const clean = texts.map((t) => t.trim().slice(0, 200)).filter(Boolean);
+    if (!clean.length) return;
+    const at = Date.now();
     setState((s) => ({
       ...s,
       tasks: [
         ...s.tasks,
-        { id: newId(), text: clean, done: false, createdAt: Date.now(), completedAt: null },
+        ...clean.map((text) => ({ id: newId(), text, done: false, createdAt: at, completedAt: null, origin })),
       ],
     }));
   }, []);
+
+  const addTask = useCallback((text: string) => addTasks([text]), [addTasks]);
 
   const toggleTask = useCallback((id: string) => {
     setState((s) => ({
@@ -213,6 +229,7 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
       setMode,
       setDurations,
       addTask,
+      addTasks,
       toggleTask,
       removeTask,
       clearCompleted,

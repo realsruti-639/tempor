@@ -13,6 +13,7 @@ import {
   resetTimer,
   settle,
   startTimer,
+  streakAfterLeaving,
   suggestedNextMode,
   type Progress,
 } from "./core";
@@ -94,6 +95,28 @@ describe("timer", () => {
     expect(suggestedNextMode("focus", 4)).toBe("long");
     expect(suggestedNextMode("focus", 8)).toBe("long");
     expect(suggestedNextMode("short", 4)).toBe("focus");
+  });
+});
+
+describe("consecutive focus sessions", () => {
+  it("reaches two cycles once, even when a completion is replayed", () => {
+    const first = startTimer(createReady("focus", D), 0, D, "one");
+    const a = settle(first, P0, 25 * MIN);
+    expect(a.progress.streak).toBe(1);
+    const second = startTimer(createReady("focus", D), 30 * MIN, D, "two");
+    const b = settle(second, a.progress, 55 * MIN);
+    expect(b.progress.streak).toBe(2);
+    expect(settle(second, b.progress, 60 * MIN).progress.streak).toBe(2);
+  });
+
+  it("preserves the streak during breaks and clears it when focus is abandoned", () => {
+    const p = { ...P0, streak: 2 };
+    const rest = startTimer(createReady("short", D), 0, D, "break");
+    expect(settle(rest, p, 5 * MIN).progress.streak).toBe(2);
+    expect(streakAfterLeaving(rest, p).streak).toBe(2);
+    const focus = startTimer(createReady("focus", D), 0, D, "focus");
+    expect(streakAfterLeaving(focus, p).streak).toBe(0);
+    expect(streakAfterLeaving(pauseTimer(focus, MIN), p).streak).toBe(0);
   });
 });
 

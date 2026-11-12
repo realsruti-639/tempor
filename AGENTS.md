@@ -18,3 +18,5 @@
 - The palette accent is `--mode`/`--mode-2`, switched by `data-phase` (focus|rest, from `isRestPhase`) on `<html>`; only the root transitions them (nested transitions of an inherited custom property lag).
 - Ghost Terminal commands are parsed by the pure `parseCommand` in `src/lib/tempor/commands.ts`; the route maps parsed commands to actions.
 - Grid Credits are awarded inside `settle()` alongside the session count, and cosmetics purchase/equip logic is pure in `src/lib/tempor/upgrades.ts`, so rewards share the count-once guarantee.
+- Focus streaks advance inside `settle()` under the same count-once guard; abandoning active focus resets the streak while breaks preserve it, so Deck Officer rewards remain consistent after reload.
+- Deck Officer breakdowns and Grid Room agents are pure local simulations in `deck.ts` and `grid.ts`; Overclock is session-only presentation state, preserving the no-server architecture.

@@ -177,6 +177,7 @@ export function settle(t: TimerState, progress: Progress, now: number): SettleRe
       completedFocus: progress.completedFocus + 1,
       lastCountedSessionId: t.sessionId,
       credits: progress.credits + creditsForSession(t.sessionDurationMs),
+      streak: progress.streak + 1,
     };
   }
   return { timer, progress: next, justCompleted: true };

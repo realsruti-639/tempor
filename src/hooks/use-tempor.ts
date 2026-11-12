@@ -45,7 +45,8 @@ export interface CompletionInfo {
 export function useTempor(onComplete?: (info: CompletionInfo) => void) {
   const [state, setState] = useState<SavedState>(defaultState);
   const [hydrated, setHydrated] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
+  // Stable server/client first render; reconcile with wall-clock time after hydration.
+  const [now, setNow] = useState(0);
   const [announcement, setAnnouncement] = useState("");
   const firedFor = useRef<string | null>(null);
   const onCompleteRef = useRef(onComplete);

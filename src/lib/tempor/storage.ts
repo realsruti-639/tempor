@@ -191,7 +191,7 @@ function parseAudio(v: unknown): AudioPrefs {
   }
 
   const lv = isObj(v.levels) ? v.levels : null;
-  if (lv && CHANNEL_IDS.some((c) => c in lv)) {
+  if (lv && !('rain' in lv || 'stream' in lv)) {
     for (const c of CHANNEL_IDS) if (isNum(lv[c])) a.levels[c] = clamp01(lv[c] as number);
   } else if (lv) {
     // v2 mixer (rain / alpha / stream) → v3 channels
@@ -204,7 +204,8 @@ function parseAudio(v: unknown): AudioPrefs {
     a.tracks.alpha = stream > alpha ? "data-static" : "alpha-core";
   } else if (typeof v.track === "string" && LEGACY_TRACK[v.track]) {
     // v1 single-track save
-    const t = LEGACY_TRACK[v.track]!;
+    const t = LEGACY_TRACK[v.track];
+    if (!t) return a;
     const ch = TRACKS[t].channel;
     a.levels = { lofi: 0, alpha: 0, atmos: 0, [ch]: 0.7 };
     a.tracks[ch] = t;

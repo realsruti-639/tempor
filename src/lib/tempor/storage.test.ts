@@ -27,7 +27,8 @@ describe("saved-state recovery", () => {
     expect(s.progress.completedFocus).toBe(6);
     expect(s.durations).toEqual({ focus: 25, short: 10, long: 15 });
     expect(s.timer.status).toBe("ready");
-    expect(s.audio.levels).toEqual({ rain: 1, alpha: 0, stream: 0.3 });
+    expect(s.audio.levels).toEqual({ lofi: 1, alpha: 0.3, atmos: 0 });
+    expect(s.audio.tracks.alpha).toBe("data-static");
     expect(s.audio.volume).toBe(1);
     expect(s.cosmetics).toEqual({ owned: ["shades"], equipped: ["shades"] });
   });
@@ -61,7 +62,18 @@ describe("saved-state recovery", () => {
 
   it("migrates a v1 single-track sound choice into mixer levels", () => {
     const s = parseSaved(JSON.stringify({ audio: { track: "static", volume: 0.4 } }));
-    expect(s.audio.levels).toEqual({ rain: 0, alpha: 0, stream: 0.7 });
+    expect(s.audio.levels).toEqual({ lofi: 0, alpha: 0.7, atmos: 0 });
+    expect(s.audio.tracks.alpha).toBe("data-static");
     expect(s.progress.credits).toBe(0);
+  });
+
+  it("preserves v3 mixer selections and streak through saving", () => {
+    const saved = defaultState();
+    saved.progress.streak = 2;
+    saved.audio.levels = { lofi: 0.2, alpha: 0.4, atmos: 0.6 };
+    saved.audio.tracks = { lofi: "neon-horizon", alpha: "grid-metronome", atmos: "cyber-garden" };
+    const restored = parseSaved(JSON.stringify(saved));
+    expect(restored.audio).toEqual(saved.audio);
+    expect(restored.progress.streak).toBe(2);
   });
 });

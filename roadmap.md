@@ -1,5 +1,12 @@
 # Tempor roadmap
 
+## v4
+- [ ] Compact HUD layout with persistent preference and quick controls
+- [ ] Bio-Sync local-time palette and mixer recommendations
+- [ ] Persistent stamina, enforced 5-minute cooling and mascot warning
+- [ ] Credit-unlocked workspace skins and CSS-only visual motion
+- [ ] Verify rules, reload recovery and desktop/mobile flows
+
 ## v2 (done)
 - [x] Ghost Terminal, ambient mixer, particle field, Grid Credits, System Upgrades, cooldown phase, tests
 

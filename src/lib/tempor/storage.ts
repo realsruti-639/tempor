@@ -98,7 +98,8 @@ type Key =
   | "durations" | "timer" | "progress" | "tasks" | "audio" | "cosmetics" | "botFrozen"
   | "owned" | "equipped" | "credits" | "streak"
   | "mode" | "status" | "remainingMs" | "endAt" | "sessionId" | "sessionStartedAt" | "pausedAt"
-  | "sessionDurationMs" | "completedFocus" | "lastCountedSessionId";
+  | "sessionDurationMs" | "completedFocus" | "lastCountedSessionId"
+  | "value" | "coolingUntil" | "hud" | "bioSync" | "skin" | "stamina" | "workspace";
 type Bag = Partial<Record<Key, unknown>> & Record<string, unknown>;
 
 const isObj = (v: unknown): v is Bag =>

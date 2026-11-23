@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { formatClock, remainingAt, type TimerState } from "@/lib/tempor/core";
 
 export function HudView({ timer, now, task, playing, onAudio, onStart, onPause, onExit, cooling }: {
-  timer: TimerState; now: number; task?: string; playing: boolean; cooling: boolean;
+  timer: TimerState; now: number; task?: string | undefined; playing: boolean; cooling: boolean;
   onAudio: () => void; onStart: () => void; onPause: () => void; onExit: () => void;
 }) {
   return <section aria-label="Cyber HUD" className="cyber-hud fixed bottom-4 right-4 z-40 w-[min(440px,calc(100vw-2rem))] rounded-lg p-4">

@@ -68,6 +68,8 @@ describe("saved-state recovery", () => {
   });
 
   it("preserves v3 mixer selections and streak through saving", () => {
+    expect(parseSaved(JSON.stringify({ workspace: { owned: ["noir", "bad"], skin: "ocean", hud: true } })).workspace)
+      .toEqual({ hud: true, bioSync: false, owned: ["noir"], skin: null });
     const saved = defaultState();
     saved.progress.streak = 2;
     saved.audio.levels = { lofi: 0.2, alpha: 0.4, atmos: 0.6 };

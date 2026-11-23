@@ -15,6 +15,7 @@ import {
   type Mode,
 } from "@/lib/tempor/core";
 import { purchase, toggleEquip, type CosmeticId } from "@/lib/tempor/upgrades";
+import { coolingActive, coolingTimer, staminaAfter, unlockSkin, type SkinId, type Workspace } from "@/lib/tempor/matrix";
 import {
   defaultState,
   loadState,
@@ -36,6 +37,8 @@ export interface CompletionInfo {
   creditsAwarded: number;
   /** Consecutive focus sessions, including this one. */
   streak: number;
+  /** Stamina hit zero: a mandatory 5-minute cooling break has started. */
+  override: boolean;
 }
 
 /**
@@ -58,7 +61,17 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
     const t = Date.now();
     const r = settle(loaded.timer, loaded.progress, t);
     if (r.justCompleted) firedFor.current = loaded.timer.sessionId; // no chime on reload
-    setState({ ...loaded, timer: r.timer, progress: r.progress });
+    let { timer: tm, stamina } = { timer: r.timer, stamina: loaded.stamina };
+    if (r.justCompleted) {
+      const st = staminaAfter(stamina, loaded.timer.mode, loaded.timer.sessionId, loaded.timer.sessionDurationMs);
+      stamina = st.stamina;
+      if (st.critical) {
+        const at = loaded.timer.endAt ?? t;
+        tm = settle(coolingTimer(at, loaded.durations, newId()), r.progress, t).timer;
+        stamina = { ...stamina, coolingUntil: at + 5 * 60_000 };
+      }
+    }
+    setState({ ...loaded, timer: tm, progress: r.progress, stamina });
     setNow(t);
     setHydrated(true);
   }, []);
@@ -86,7 +99,11 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
     if (!hydrated) return;
     if (timer.status !== "running" || timer.endAt === null || now < timer.endAt) return;
     const r = settle(timer, progress, now);
-    setState((s) => ({ ...s, timer: r.timer, progress: r.progress }));
+    const st = staminaAfter(state.stamina, timer.mode, timer.sessionId, timer.sessionDurationMs);
+    const at = timer.endAt;
+    const nextTimer = st.critical ? coolingTimer(at, state.durations, newId()) : r.timer;
+    const stamina = st.critical ? { ...st.stamina, coolingUntil: at + 5 * 60_000 } : st.stamina;
+    setState((s) => ({ ...s, timer: nextTimer, progress: r.progress, stamina }));
     if (timer.sessionId && firedFor.current !== timer.sessionId) {
       firedFor.current = timer.sessionId;
       setAnnouncement(
@@ -99,9 +116,10 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
         completedFocus: r.progress.completedFocus,
         creditsAwarded: r.progress.credits - progress.credits,
         streak: r.progress.streak,
+        override: st.critical,
       });
     }
-  }, [now, hydrated, timer, progress]);
+  }, [now, hydrated, timer, progress, state.stamina, state.durations]);
 
   // Tab title mirrors the countdown while active.
   useEffect(() => {
@@ -121,7 +139,11 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
     const t = Date.now();
     setNow(t);
     setAnnouncement("");
-    setState((s) => ({ ...s, timer: startTimer(s.timer, t, s.durations, newId()) }));
+    setState((s) =>
+      coolingActive(s.stamina, t) && s.timer.mode === "focus"
+        ? s
+        : { ...s, timer: startTimer(s.timer, t, s.durations, newId()) },
+    );
   }, []);
 
   const pause = useCallback(() => {
@@ -132,7 +154,7 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
 
   const reset = useCallback(() => {
     setAnnouncement("");
-    setState((s) => ({
+    setState((s) => coolingActive(s.stamina, Date.now()) ? s : ({
       ...s,
       progress: streakAfterLeaving(s.timer, s.progress),
       timer: resetTimer(s.timer, s.durations),
@@ -144,6 +166,7 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
     setNow(t);
     setAnnouncement("");
     setState((s) => {
+      if (coolingActive(s.stamina, t) && s.timer.status === "running") return s; // mandatory cooling can't be skipped
       const ready = switchMode(s.timer, mode, s.durations);
       return {
         ...s,
@@ -218,6 +241,17 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
     setState((s) => ({ ...s, botFrozen }));
   }, []);
 
+  const setWorkspace = useCallback((patch: Partial<Workspace>) => {
+    setState((s) => ({ ...s, workspace: { ...s.workspace, ...patch } }));
+  }, []);
+
+  const buySkin = useCallback((id: SkinId) => {
+    setState((s) => {
+      const r = unlockSkin(s.workspace, s.progress.credits, id);
+      return r.ok ? { ...s, workspace: r.workspace, progress: { ...s.progress, credits: r.credits } } : s;
+    });
+  }, []);
+
   return {
     state,
     hydrated,
@@ -236,6 +270,8 @@ export function useTempor(onComplete?: (info: CompletionInfo) => void) {
       clearCompleted,
       setAudio,
       setBotFrozen,
+      setWorkspace,
+      buySkin,
       buyCosmetic,
       toggleCosmetic,
     },

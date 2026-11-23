@@ -223,10 +223,13 @@ interface Props {
   frozen: boolean;
   equipped: CosmeticId[];
   onFrozenChange: (v: boolean) => void;
+  stamina: number;
+  fatigued: boolean;
+  cooling: boolean;
   children?: ReactNode;
 }
 
-export function PomoBot({ state, frozen, equipped, onFrozenChange, children }: Props) {
+export function PomoBot({ state, frozen, equipped, onFrozenChange, stamina, fatigued, cooling, children }: Props) {
   return (
     <section aria-labelledby="bot-title" className="glass-panel flex flex-col rounded-3xl p-5">
       <header className="flex items-center justify-between">
@@ -246,16 +249,38 @@ export function PomoBot({ state, frozen, equipped, onFrozenChange, children }: P
           "relative mt-4 grid place-items-center overflow-hidden rounded-2xl bg-bot-visor/50 px-6 py-6 transition-shadow duration-700",
           equipped.includes("aura") && !frozen && "shadow-[inset_0_0_40px_-10px_var(--terminal)]",
           frozen && "bot-frozen [&_ellipse]:fill-bot-silhouette/10 [&_rect]:fill-bot-silhouette",
+          fatigued && !frozen && "bot-fatigued",
         )}
       >
         <BotArt state={state} equipped={equipped} />
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-1.5 flex justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          <span>Stamina</span>
+          <span className={cn("tabular", fatigued && "text-amber")}>{cooling ? "cooling" : `${Math.round(stamina)}%`}</span>
+        </div>
+        <div
+          role="meter"
+          aria-label="Operator stamina"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(stamina)}
+          className="h-1.5 overflow-hidden rounded-full bg-foreground/10"
+        >
+          <div
+            className={cn("stamina-fill h-full w-full origin-left rounded-full", fatigued ? "bg-amber" : "bg-terminal")}
+            style={{ transform: `scaleX(${stamina / 100})` }}
+          />
+        </div>
       </div>
 
       <p
         aria-live="polite"
         className="mt-4 min-h-[2.75rem] rounded-xl border border-glass-border bg-background/40 px-3 py-2.5 font-mono text-xs leading-relaxed text-muted-foreground"
       >
-        <span className="text-terminal/80">&gt;</span> {BOT_LINES[state]}
+        <span className="text-terminal/80">&gt;</span>{" "}
+        {cooling ? "Cooling cycle locked. Step away and hydrate." : fatigued ? "Reserves running low. A real break comes next." : BOT_LINES[state]}
         <span aria-hidden className="ml-0.5 inline-block h-3 w-1.5 translate-y-0.5 bg-muted-foreground/60 animate-caret" />
       </p>
 

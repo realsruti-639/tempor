@@ -21,6 +21,8 @@ interface Props {
   onToggle: () => void;
   onVolume: (v: number) => void;
   onChime: (on: boolean) => void;
+  /** Bio-Sync picks for the current time of day. */
+  recommended?: TrackId[];
 }
 
 /** Tiny live level meter driven by the analyser. */
@@ -79,6 +81,7 @@ export function AudioWidget({
   onToggle,
   onVolume,
   onChime,
+  recommended = [],
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const VolIcon = prefs.volume === 0 ? VolumeX : prefs.volume < 0.5 ? Volume1 : Volume2;
@@ -260,6 +263,11 @@ export function AudioWidget({
                             >
                               {t.name}
                             </span>
+                            {recommended.includes(tid) && (
+                              <span className="mt-1 inline-block rounded border border-mode/40 px-1.5 py-px font-mono text-[9px] uppercase tracking-widest text-mode">
+                                Bio-Recommended
+                              </span>
+                            )}
                             <span className="block truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                               {t.meta}
                             </span>

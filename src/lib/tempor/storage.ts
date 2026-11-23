@@ -13,6 +13,7 @@ import {
   type TimerState,
 } from "./core";
 import { COSMETIC_IDS, type CosmeticId } from "./upgrades";
+import { freshStamina, freshWorkspace, isSkin, type Stamina, type Workspace } from "./matrix";
 import {
   CHANNEL_IDS,
   DEFAULT_LEVELS,
@@ -28,7 +29,7 @@ export { CHANNEL_IDS, DEFAULT_LEVELS, DEFAULT_TRACKS };
 export type { ChannelId, ChannelLevels, ChannelTracks };
 
 export const STORAGE_KEY = "tempor:state";
-export const STORAGE_VERSION = 3;
+export const STORAGE_VERSION = 4;
 
 export type TaskOrigin = "user" | "ai";
 
@@ -65,6 +66,8 @@ export interface SavedState {
   audio: AudioPrefs;
   cosmetics: Cosmetics;
   botFrozen: boolean;
+  stamina: Stamina;
+  workspace: Workspace;
 }
 
 export const DEFAULT_AUDIO: AudioPrefs = {
@@ -84,6 +87,8 @@ export function defaultState(): SavedState {
     audio: { ...DEFAULT_AUDIO, levels: { ...DEFAULT_LEVELS }, tracks: { ...DEFAULT_TRACKS } },
     cosmetics: { owned: [], equipped: [] },
     botFrozen: false,
+    stamina: freshStamina(),
+    workspace: freshWorkspace(),
   };
 }
 
@@ -228,6 +233,25 @@ function parseCosmetics(v: unknown): Cosmetics {
   return c;
 }
 
+function parseStamina(v: unknown): Stamina {
+  const s = freshStamina();
+  if (!isObj(v)) return s;
+  if (isNum(v.value)) s.value = Math.min(100, Math.max(0, v.value));
+  s.lastSessionId = strOrNull(v.lastSessionId);
+  s.coolingUntil = numOrNull(v.coolingUntil);
+  return s;
+}
+
+function parseWorkspace(v: unknown): Workspace {
+  const w = freshWorkspace();
+  if (!isObj(v)) return w;
+  w.hud = v.hud === true;
+  w.bioSync = v.bioSync === true;
+  w.owned = Array.isArray(v.owned) ? [...new Set(v.owned.filter(isSkin))] : [];
+  w.skin = isSkin(v.skin) && w.owned.includes(v.skin) ? v.skin : null;
+  return w;
+}
+
 export function parseSaved(raw: string | null | undefined): SavedState {
   if (!raw) return defaultState();
   let data: unknown;
@@ -247,6 +271,8 @@ export function parseSaved(raw: string | null | undefined): SavedState {
     audio: parseAudio(data.audio),
     cosmetics: parseCosmetics(data.cosmetics),
     botFrozen: data.botFrozen === true,
+    stamina: parseStamina(data.stamina),
+    workspace: parseWorkspace(data.workspace),
   };
 }
 

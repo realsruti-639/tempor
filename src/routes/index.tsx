@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Command as CommandIcon, Zap } from "lucide-react";
+import { Command as CommandIcon, PanelBottomClose, Zap } from "lucide-react";
 
 import {
   AlertDialog,
@@ -23,6 +23,17 @@ import { TaskTerminal, type LogEntry, type LogTone } from "@/components/tempor/T
 import { GhostTerminal } from "@/components/tempor/GhostTerminal";
 import { GridRoom, type GridChat } from "@/components/tempor/GridRoom";
 import { OverclockView } from "@/components/tempor/OverclockView";
+import { HudView } from "@/components/tempor/HudView";
+import { MatrixControls } from "@/components/tempor/MatrixControls";
+import { WorkspaceSkins } from "@/components/tempor/WorkspaceSkins";
+import {
+  OVERRIDE_LINE,
+  OVERRIDE_TAG,
+  bioPhaseAt,
+  bioTracks,
+  coolingActive,
+  fatigued,
+} from "@/lib/tempor/matrix";
 import { useTempor, type CompletionInfo } from "@/hooks/use-tempor";
 import { useAmbience } from "@/hooks/use-ambience";
 import {
@@ -46,17 +57,17 @@ const COOLDOWN_LOG =
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Tempor v3 — the autonomous focus OS" },
+      { title: "Tempor v4 — the omnipresent focus matrix" },
       {
         name: "description",
         content:
-          "A late-night Pomodoro OS with an AI Deck Officer, a 9-track generative mixer, a mock hacker Grid Room and a full-screen Overclock mode.",
+          "A Pomodoro focus matrix with a compact HUD, time-aware Bio-Sync themes, a mascot that guards your stamina and unlockable workspace skins.",
       },
-      { property: "og:title", content: "Tempor v3 — the autonomous focus OS" },
+      { property: "og:title", content: "Tempor v4 — the omnipresent focus matrix" },
       {
         property: "og:description",
         content:
-          "Focus timer, Deck Officer brain dumps, Grid Room co-workers, 9 ambient tracks and Overclock mode — all saved on your device.",
+          "Corner HUD, Bio-Sync day/night themes, stamina-aware breaks, 9 ambient tracks and workspace skins — all saved on your device.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -70,7 +81,8 @@ function Index() {
   const { state, now, announcement, actions } = useTempor((info) => completeRef.current(info));
   const ambience = useAmbience(state.audio, actions.setAudio);
 
-  const { timer, progress, durations, tasks, audio, botFrozen, cosmetics } = state;
+  const { timer, progress, durations, tasks, audio, botFrozen, cosmetics, stamina, workspace } = state;
+  const [hour, setHour] = useState<number | null>(null);
   const [pendingMode, setPendingMode] = useState<Mode | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
   const [burst, setBurst] = useState<BurstEvent | null>(null);
@@ -111,6 +123,11 @@ function Index() {
 
   completeRef.current = (info) => {
     ambience.chime();
+    if (info.override) {
+      pushLog(OVERRIDE_TAG, OVERRIDE_LINE, "system");
+      pingGrid("focus");
+      return;
+    }
     if (info.mode !== "focus") return;
     pushLog("SYSTEM STATUS", COOLDOWN_LOG, "system");
     pingGrid("focus");
@@ -141,6 +158,25 @@ function Index() {
   useEffect(() => {
     document.documentElement.setAttribute("data-phase", rest ? "rest" : "focus");
   }, [rest]);
+
+  // Circadian wave: re-read local time every minute.
+  useEffect(() => {
+    const read = () => setHour(new Date().getHours());
+    read();
+    const id = window.setInterval(read, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const bio = bioPhaseAt(hour ?? 12);
+  useEffect(() => {
+    const el = document.documentElement;
+    if (workspace.bioSync && hour !== null) el.setAttribute("data-bio", bio);
+    else el.removeAttribute("data-bio");
+    if (workspace.skin) el.setAttribute("data-skin", workspace.skin);
+    else el.removeAttribute("data-skin");
+  }, [workspace.bioSync, workspace.skin, bio, hour]);
+  const cooling = coolingActive(stamina, now);
+  const hud = workspace.hud;
+  const currentTask = tasks.find((t) => !t.done)?.text;
 
   const start = useCallback(() => {
     ambience.prepareChime();
@@ -252,7 +288,7 @@ function Index() {
   }, [ambience]);
 
   const botState = botStateFor(timer, progress.completedFocus, now);
-  const particlesOn = timer.status === "running" && ambience.isPlaying && !overclock;
+  const particlesOn = timer.status === "running" && ambience.isPlaying && !overclock && !hud;
 
   // Deck Officer notices a long pause once per pause.
   const notedPause = useRef<number | null>(null);
@@ -284,12 +320,26 @@ function Index() {
         />
       )}
 
+      {hud && !overclock && (
+        <HudView
+          timer={timer}
+          now={now}
+          task={currentTask}
+          playing={ambience.isPlaying}
+          cooling={cooling}
+          onAudio={ambience.togglePlay}
+          onStart={timer.status === "complete" ? () => beginNext(suggestedNextMode(timer.mode, progress.completedFocus)) : start}
+          onPause={actions.pause}
+          onExit={() => actions.setWorkspace({ hud: false })}
+        />
+      )}
+
       <div
-        aria-hidden={overclock || undefined}
-        inert={overclock || undefined}
+        aria-hidden={overclock || hud || undefined}
+        inert={overclock || hud || undefined}
         className={cn(
           "mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-5 transition-opacity duration-500 sm:px-6 lg:px-10 lg:py-8",
-          overclock && "pointer-events-none opacity-0",
+          (overclock || hud) && "pointer-events-none opacity-0",
         )}
       >
         <header className="flex items-center justify-between gap-3">
@@ -302,14 +352,28 @@ function Index() {
             </span>
             <div className="leading-tight">
               <h1 className="text-lg font-semibold tracking-[0.18em]">
-                TEMPOR <span className="font-mono text-xs font-normal text-mode">v3</span>
+                TEMPOR <span className="font-mono text-xs font-normal text-mode">v4</span>
               </h1>
               <p className="hidden font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground sm:block">
-                autonomous focus os
+                omnipresent focus matrix
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => actions.setWorkspace({ hud: true })}
+              aria-label="Enter HUD Mode"
+              className="glass-panel flex h-11 items-center gap-2 rounded-2xl px-3 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground transition-all hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
+            >
+              <PanelBottomClose className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">HUD</span>
+            </button>
+            <MatrixControls
+              enabled={workspace.bioSync}
+              phase={bio}
+              onChange={(on) => actions.setWorkspace({ bioSync: on })}
+            />
             <button
               type="button"
               onClick={() => setGhostOpen(true)}
@@ -339,6 +403,7 @@ function Index() {
               onToggle={ambience.togglePlay}
               onVolume={(v) => actions.setAudio({ volume: v })}
               onChime={(c) => actions.setAudio({ chime: c })}
+              recommended={workspace.bioSync && hour !== null ? bioTracks(bio) : []}
             />
           </div>
         </header>
@@ -367,6 +432,9 @@ function Index() {
               frozen={botFrozen}
               equipped={cosmetics.equipped}
               onFrozenChange={actions.setBotFrozen}
+              stamina={stamina.value}
+              fatigued={fatigued(stamina) || cooling}
+              cooling={cooling}
             >
               <SystemUpgrades
                 credits={progress.credits}
@@ -374,6 +442,12 @@ function Index() {
                 equipped={cosmetics.equipped}
                 onBuy={actions.buyCosmetic}
                 onToggle={actions.toggleCosmetic}
+              />
+              <WorkspaceSkins
+                workspace={workspace}
+                credits={progress.credits}
+                onBuy={actions.buySkin}
+                onEquip={(skin) => actions.setWorkspace({ skin })}
               />
             </PomoBot>
             <TaskTerminal
